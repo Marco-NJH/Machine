@@ -20,6 +20,6 @@ writer.add_image("Norm" ,img_norm)
 
 #resize
 
-#
+#compose
 
 writer.close()
