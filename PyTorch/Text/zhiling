@@ -1,0 +1,4 @@
+tensorboard:
+tensorboard --logdir PyTorch/logs --host=127.0.0.1
+
+卷积池化，非线性激活
