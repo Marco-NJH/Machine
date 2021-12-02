@@ -1,3 +1,4 @@
+import torch
 import torchvision
 from tensorboardX import SummaryWriter
 from torch import nn
@@ -71,6 +72,9 @@ for i in range(epoch):
     print("整体测试上的loss{}".format(total_test_loss))
     writer.add_scalar("test_loss",total_test_loss,total_test_step)
     total_test_step = total_test_step+1
+
+
+    torch.save(tudui.state_dict(),"tudui{}".format(i))
 
 
 writer.close()
