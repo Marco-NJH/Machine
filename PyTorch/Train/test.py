@@ -10,7 +10,7 @@ transform = torchvision.transforms.Compose([torchvision.transforms.Resize((32,32
 image = transform(image)
 # 创建网络模型
 from torch import nn
-from torch.nn import Sequential, Conv2d, MaxPool2d, Flatten, Linear
+from torch.nn import Sequential, Conv2d, MaxPool2d, Flatten, Linear, Softmax
 
 
 class Tudui(nn.Module):
@@ -24,6 +24,7 @@ class Tudui(nn.Module):
             Conv2d(32, 64, 5, 1, padding=2),
             MaxPool2d(2),
             Flatten(),
+            # Softmax(),
             Linear(1024, 64),
             Linear(64, 10)
         )

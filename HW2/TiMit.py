@@ -3,7 +3,7 @@ import numpy as np
 
 print('Loading data ...')
 
-data_root='./timit_11/'
+data_root='./timit_11/timit_11/'
 train = np.load(data_root + 'train_11.npy')
 train_label = np.load(data_root + 'train_label_11.npy')
 test = np.load(data_root + 'test_11.npy')
