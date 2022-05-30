@@ -16,18 +16,22 @@ from tqdm.auto import tqdm
 # However, not every augmentation is useful.
 # Please think about what kind of augmentation is helpful for food recognition.
 train_tfm = transforms.Compose([
+    transforms.RandomHorizontalFlip(),#随机将图片水平翻转
     # 将图像调整为固定形状(高度=宽度= 128)
     transforms.Resize((128, 128)),
-    # You may add some transforms here.
+    transforms.RandomRotation(15),#随机旋转图片
     # ToTensor() 应该是最后一个转换。
     transforms.ToTensor(),
+    transforms.Normalize([0.485,0.456,0.406],[0.229,0.224,0.225]),
 ])
 
 # 我们不需要增加测试和验证。
 # 我们需要做的就是调整PIL图像的大小，并将其转换为张量。
 test_tfm = transforms.Compose([
     transforms.Resize((128, 128)),
+    # transforms.CenterCrop(224),
     transforms.ToTensor(),
+    transforms.Normalize([0.485,0.456,0.406],[0.229,0.224,0.225]),
 ])
 
 # 用于培训、验证和测试的批大小。
@@ -83,8 +87,10 @@ class Classifier(nn.Module):
         )
         self.fc_layers = nn.Sequential(
             nn.Linear(512 * 4 * 4, 1024),
+            nn.Dropout(0.15),
             nn.ReLU(),
             nn.Linear(1024, 512),
+            nn.Dropout(0.1),
             nn.ReLU(),
             nn.Linear(512, 11)
         )
@@ -144,7 +150,7 @@ model.device = device
 criterion = nn.CrossEntropyLoss()
 
 # 初始化优化器，您可以自己微调一些超参数，如学习速率。
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-5)
 
 # 训练期的数量。
 n_epochs = 80
@@ -153,7 +159,7 @@ n_epochs = 80
 do_semi = False
 
 # 添加tensorboard
-writer = SummaryWriter("/logs")
+writer = SummaryWriter("logs")
 
 for epoch in range(n_epochs):
     # ---------- TODO ----------
@@ -211,8 +217,8 @@ for epoch in range(n_epochs):
     # 训练集的平均损耗和精度是记录值的平均值。
     train_loss = sum(train_loss) / len(train_loss)
     train_acc = sum(train_accs) / len(train_accs)
-    writer.add_scalar("train_loss", train_loss.item(), epoch)
-    writer.add_scalar("train_acc", train_acc.item(), epoch)
+    writer.add_scalar("train_loss", train_loss, epoch)
+    writer.add_scalar("train_acc", train_acc, epoch)
 
     # 打印信息。
     print(f"[ Train | {epoch + 1:03d}/{n_epochs:03d} ] loss = {train_loss:.5f}, acc = {train_acc:.5f}")
@@ -249,13 +255,14 @@ for epoch in range(n_epochs):
     # 整个验证集的平均损失和准确性是记录值的平均值。
     valid_loss = sum(valid_loss) / len(valid_loss)
     valid_acc = sum(valid_accs) / len(valid_accs)
-    writer.add_scalar("valid_loss", valid_loss.item(), epoch)
-    writer.add_scalar("valid_acc", valid_acc.item(), epoch)
+    writer.add_scalar("valid_loss", valid_loss, epoch)
+    writer.add_scalar("valid_acc", valid_acc, epoch)
 
     # Print the information.
     print(f"[ Valid | {epoch + 1:03d}/{n_epochs:03d} ] loss = {valid_loss:.5f}, acc = {valid_acc:.5f}")
 
-    torch.save(model.state_dict(),"food{}.pth".format(epoch))
+    if(epoch+1 % 40 ==0):
+        torch.save(model.state_dict(),"food{}.pth".format(epoch))
 
 # 确保模型处于eval模式。
 # 有些模块如Dropout或BatchNorm会影响模型是否处于训练模式。
@@ -283,7 +290,7 @@ for batch in tqdm(test_loader):
     predictions.extend(logits.argmax(dim=-1).cpu().numpy().tolist())
 
 # Save predictions into the file.
-with open("predicte1.csv", "w") as f:
+with open("predicte2.csv", "w") as f:
 
     # The first row must be "Id, Category"
     f.write("Id,Category\n")
