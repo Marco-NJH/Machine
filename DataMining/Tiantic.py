@@ -146,3 +146,251 @@ print(df_train[['Pclass', 'Survived']].groupby('Pclass', as_index=False)['Surviv
 print()
 print(df_train[['Sex', 'Survived']].groupby('Sex', as_index=False)['Survived'].mean())
 print()
+
+# Correlation of some features with target
+
+print(df_train[['Pclass', 'Survived']].groupby('Pclass', as_index=False)['Survived'].mean())
+print()
+print(df_train[['Sex', 'Survived']].groupby('Sex', as_index=False)['Survived'].mean())
+print()
+
+# Continuous Features plot with Target variable
+
+cont_features = ['Age', 'Fare']
+surv = df_train['Survived'] == 1
+
+fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(30, 30))
+plt.subplots_adjust(right=0.9)
+
+for i, feature in enumerate(cont_features):
+    # Distribution of survival in feature
+    sns.distplot(df_train[~surv][feature], label='Not Survived', hist=True, color='#e74c3c', ax=axs[0][i])
+    sns.distplot(df_train[surv][feature], label='Survived', hist=True, color='#2ecc71', ax=axs[0][i])
+
+    # Distribution of feature in dataset
+    sns.distplot(df_train[feature], label='Training Set', hist=False, color='#e74c3c', ax=axs[1][i])
+    #     sns.distplot(df_test[feature], label='Test Set', hist=False, color='#2ecc71', ax=axs[1][i])
+
+    axs[0][i].set_xlabel('')
+    axs[1][i].set_xlabel('')
+
+    for j in range(2):
+        axs[i][j].tick_params(axis='x', labelsize=20)
+        axs[i][j].tick_params(axis='y', labelsize=20)
+
+    axs[0][i].legend(loc='upper right', prop={'size': 20})
+    axs[1][i].legend(loc='upper right', prop={'size': 20})
+    axs[0][i].set_title('Distribution of Survival in {}'.format(feature), size=20, y=1.05)
+
+axs[1][0].set_title('Distribution of {} Feature'.format('Age'), size=20, y=1.05)
+axs[1][1].set_title('Distribution of {} Feature'.format('Fare'), size=20, y=1.05)
+
+plt.show()
+
+# Categorical Features plot with Target variable
+cat_features = ['Embarked', 'Parch', 'Pclass', 'Sex', 'SibSp']
+
+fig, axs = plt.subplots(ncols=2, nrows=3, figsize=(20, 20))
+plt.subplots_adjust(right=0.9, top=0.8)
+
+for i, feature in enumerate(cat_features, 1):
+    plt.subplot(2, 3, i)
+    sns.countplot(x=feature, hue='Survived', data=df_train)
+
+    plt.xlabel('{}'.format(feature), size=20, labelpad=15)
+    plt.ylabel('Passenger Count', size=20, labelpad=15)
+    plt.tick_params(axis='x', labelsize=20)
+    plt.tick_params(axis='y', labelsize=20)
+
+    plt.legend(['Not Survived', 'Survived'], loc='upper center', prop={'size': 18})
+    plt.title('Count of Survival in {} Feature'.format(feature), size=20, y=1.05)
+
+plt.show()
+
+"""大多数特征是相互关联的。此关系可用于创建具有特征转换和特征交互的新特征。目标编码也非常有用，因为它与幸存的特征有很高的相关性。
+分割点和尖峰在连续特征中可见。决策树模型可以很容易地捕捉到它们，但线性模型可能无法发现它们。
+分类特征具有非常明显的分布，具有不同的生存率。这些特征可以是一个热编码的。这些特性中的一些可以相互组合以形成新特性。"""
+
+# 特征工程
+df_all = concat_df(df_train, df_test)
+df_all.head()
+
+# Create some new features
+df_all['FamilySize'] = df_all.apply(lambda x: x['SibSp'] + x['Parch'] + 1, axis='columns')
+print(df_all[['FamilySize', 'Survived']].groupby('FamilySize', as_index=False)['Survived'].mean())
+
+print()
+
+df_all['IsAlone'] = df_all.apply(lambda x: 1 if x['FamilySize'] == 1 else 0, axis='columns')
+print(df_all[['IsAlone', 'Survived']].groupby('IsAlone', as_index=False)['Survived'].mean())
+
+print()
+
+# Fare
+# Fare feature is skewed and survival rate is extremely high on the right end.
+# Divide into quantile bins
+df_all['Fare'] = pd.qcut(df_all['Fare'], 13)
+
+
+fig, axs = plt.subplots(figsize=(22, 9))
+sns.countplot(x='Fare', hue='Survived', data=df_all)
+
+plt.xlabel('Fare', size=15, labelpad=20)
+plt.ylabel('Passenger Count', size=15, labelpad=20)
+plt.tick_params(axis='x', labelsize=10)
+plt.tick_params(axis='y', labelsize=15)
+
+plt.legend(['Not Survived', 'Survived'], loc='upper right', prop={'size': 15})
+plt.title('Count of Survival in {} Feature'.format('Fare'), size=15, y=1.05)
+
+plt.show()
+
+# Age
+df_all['Age'] = pd.qcut(df_all['Age'], 10)
+
+fig, axs = plt.subplots(figsize=(22, 9))
+sns.countplot(x='Age', hue='Survived', data=df_all)
+
+plt.xlabel('Age', size=15, labelpad=20)
+plt.ylabel('Passenger Count', size=15, labelpad=20)
+plt.tick_params(axis='x', labelsize=15)
+plt.tick_params(axis='y', labelsize=15)
+
+plt.legend(['Not Survived', 'Survived'], loc='upper right', prop={'size': 15})
+plt.title('Survival Counts in {} Feature'.format('Age'), size=15, y=1.05)
+
+plt.show()
+
+# We cannot use Ticket feature directly as its huge but we can use num people sharing the same ticket number
+# as a count feature as a proxy for party size
+df_all['Ticket_Frequency'] = df_all.groupby('Ticket')['Ticket'].transform('count')
+
+# Title and isMarried
+
+df_all['Title'] = df_all['Name'].str.split(', ', expand=True)[1].str.split('.', expand=True)[0]
+df_all['Title'] = df_all['Title'].replace(['Miss', 'Mrs','Ms', 'Mlle', 'Lady', 'Mme', 'the Countess', 'Dona'], 'Miss/Mrs/Ms')
+df_all['Title'] = df_all['Title'].replace(['Dr', 'Col', 'Major', 'Jonkheer', 'Capt', 'Sir', 'Don', 'Rev'], 'Dr/Military/Noble/Clergy')
+
+sns.barplot(x=df_all['Title'].value_counts().index, y=df_all['Title'].value_counts().values)
+plt.show()
+
+
+df_all['Is_Married'] = 0
+df_all['Is_Married'].loc[df_all['Title'] == 'Mrs'] = 1
+
+df_train, df_test = divide_df(df_all)
+
+df_all.head()
+
+# Label encode non-numerical ordinal features
+non_numeric_features = ['Age', 'Fare']
+
+# for feature in non_numeric_features:
+encoder = OrdinalEncoder()
+df_train[non_numeric_features] = encoder.fit_transform(df_train[non_numeric_features])
+df_test[non_numeric_features] = encoder.transform(df_test[non_numeric_features])
+
+# One-Hot encode categorical features
+cat_features = ['Pclass', 'Sex', 'Embarked', 'Title']
+
+# Set handle_unknown='ignore' to avoid errors when the validation data contains classes that aren't represented in the training data, and
+# Set sparse=False ensures that the encoded columns are returned as a numpy array (instead of a sparse matrix).
+for feature in cat_features:
+    encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
+    encoded_feat_train = pd.DataFrame(encoder.fit_transform(df_train[[feature]]))
+    encoded_feat_test = pd.DataFrame(encoder.transform(df_test[[feature]]))
+
+    # get OHE column names
+    encoded_feat_train.columns = encoder.get_feature_names([feature])
+    encoded_feat_test.columns = encoder.get_feature_names([feature])
+
+    # One-hot encoding removed index; put it back
+    encoded_feat_train.index = df_train.index
+    encoded_feat_test.index = df_test.index
+
+    # Remove categorical columns (will replace with one-hot encoding)
+    rem_train = df_train.drop(feature, axis=1)
+    rem_test = df_test.drop(feature, axis=1)
+
+    # Add one-hot encoded columns to numerical features
+    df_train = pd.concat([rem_train, encoded_feat_train], axis=1)
+    df_test = pd.concat([rem_test, encoded_feat_test], axis=1)
+
+# Drop unneeded columns
+drop_cols = ['Name', 'Ticket', 'SibSp', 'Parch']
+df_train.drop(drop_cols, axis=1, inplace=True)
+df_test.drop(drop_cols, axis=1, inplace=True)
+
+
+df_train.shape, df_test.shape
+
+print(sorted(df_train.columns))
+print()
+
+print(sorted(df_test.columns))
+
+df_train
+
+
+
+# 模型
+train_X = df_train.drop(['Survived', 'PassengerId'], axis=1)
+train_y = df_train['Survived']
+test_X = df_test.drop(['PassengerId'], axis=1).copy()
+
+print('X_train shape: {}'.format(train_X.shape))
+print('y_train shape: {}'.format(train_y.shape))
+print('X_test shape: {}'.format(test_X.shape))
+
+
+# Logistic Regression
+logit = LogisticRegression()
+logit.fit(train_X, train_y)
+pred_y = logit.predict(test_X)
+
+# training loss
+acc_log = round(logit.score(train_X, train_y) * 100, 2)
+print(acc_log)
+
+# logistic regression weights per feature signify a positive or negative effect toward survival
+    # Title_Master(kid), Sex_Female, 1st class have high positive weights toward survival
+    # Large families, Sex_Male, 3rd class have high negative weights toward survival
+
+coeff_df = pd.DataFrame(train_X.columns)
+coeff_df.columns = ['Feature']
+coeff_df["Weights"] = pd.Series(logit.coef_[0])
+coeff_df.sort_values(by='Weights', ascending=False)
+
+# 决策树
+decision_tree = DecisionTreeClassifier()
+decision_tree.fit(train_X, train_y)
+pred_y = decision_tree.predict(test_X)
+acc_decision_tree = round(decision_tree.score(train_X, train_y) * 100, 2)
+print(acc_decision_tree)
+
+# 随机森林
+random_forest = RandomForestClassifier(
+    criterion='gini',
+    n_estimators=500,
+    max_depth=10,
+    min_samples_split=4,
+    min_samples_leaf=5,
+    max_features='auto',
+    oob_score=True,
+    random_state=SEED,
+    n_jobs=-1,
+    verbose=1
+)
+random_forest.fit(train_X, train_y)
+rf_pred_y = random_forest.predict(test_X)
+acc_random_forest = round(random_forest.score(train_X, train_y) * 100, 2)
+print(acc_random_forest)
+
+submission = pd.DataFrame({
+    "PassengerId": df_test["PassengerId"],
+    "Survived": rf_pred_y.astype(int)
+})
+submission.head(10)
+submission.to_csv('submission.csv', header=True, index=False)
+x = pd.read_csv('submission.csv')
+x['Survived'].value_counts()
