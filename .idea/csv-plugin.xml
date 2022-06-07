@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\DataMining\submission_tree.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\DataMining\titanic\gender_submission.csv">
           <value>
             <Attribute>
@@ -18,6 +25,13 @@
           </value>
         </entry>
         <entry key="\DataMining\titanic\test.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\DataMining\titanic\train.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
