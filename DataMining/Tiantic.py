@@ -146,3 +146,175 @@ print(df_train[['Pclass', 'Survived']].groupby('Pclass', as_index=False)['Surviv
 print()
 print(df_train[['Sex', 'Survived']].groupby('Sex', as_index=False)['Survived'].mean())
 print()
+
+# 使用目标变量绘制连续特征图
+
+cont_features = ['Age', 'Fare']
+surv = df_train['Survived'] == 1
+
+fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(20, 20))
+plt.subplots_adjust(right=1.5)
+
+for i, feature in enumerate(cont_features):
+    # 生存分布特征
+    sns.distplot(df_train[~surv][feature], label='Not Survived', hist=True, color='#e74c3c', ax=axs[0][i])
+    sns.distplot(df_train[surv][feature], label='Survived', hist=True, color='#2ecc71', ax=axs[0][i])
+
+    # 特征在数据集中的分布
+    sns.distplot(df_train[feature], label='Training Set', hist=False, color='#e74c3c', ax=axs[1][i])
+
+    axs[0][i].set_xlabel('')
+    axs[1][i].set_xlabel('')
+
+    for j in range(2):
+        axs[i][j].tick_params(axis='x', labelsize=20)
+        axs[i][j].tick_params(axis='y', labelsize=20)
+
+    axs[0][i].legend(loc='upper right', prop={'size': 20})
+    axs[1][i].legend(loc='upper right', prop={'size': 20})
+    axs[0][i].set_title('Distribution of Survival in {}'.format(feature), size=20, y=1.05)
+
+axs[1][0].set_title('Distribution of {} Feature'.format('Age'), size=20, y=1.05)
+axs[1][1].set_title('Distribution of {} Feature'.format('Fare'), size=20, y=1.05)
+
+plt.show()
+
+# Categorical Features plot with Target variable
+cat_features = ['Embarked', 'Parch', 'Pclass', 'Sex', 'SibSp']
+
+fig, axs = plt.subplots(ncols=2, nrows=3, figsize=(20, 20))
+plt.subplots_adjust(right=1.5, top=1.25)
+
+for i, feature in enumerate(cat_features, 1):
+    plt.subplot(2, 3, i)
+    sns.countplot(x=feature, hue='Survived', data=df_train)
+
+    plt.xlabel('{}'.format(feature), size=20, labelpad=15)
+    plt.ylabel('Passenger Count', size=20, labelpad=15)
+    plt.tick_params(axis='x', labelsize=20)
+    plt.tick_params(axis='y', labelsize=20)
+
+    plt.legend(['Not Survived', 'Survived'], loc='upper center', prop={'size': 18})
+    plt.title('Count of Survival in {} Feature'.format(feature), size=20, y=1.05)
+
+plt.show()
+
+# 特征工程
+df_all = concat_df(df_train, df_test)
+df_all.head()
+
+# Create some new features
+df_all['FamilySize'] = df_all.apply(lambda x: x['SibSp'] + x['Parch'] + 1, axis='columns')
+print(df_all[['FamilySize', 'Survived']].groupby('FamilySize', as_index=False)['Survived'].mean())
+
+print()
+
+df_all['IsAlone'] = df_all.apply(lambda x: 1 if x['FamilySize'] == 1 else 0, axis='columns')
+print(df_all[['IsAlone', 'Survived']].groupby('IsAlone', as_index=False)['Survived'].mean())
+
+print()
+
+# Fare
+# Fare feature is skewed and survival rate is extremely high on the right end.
+# Divide into quantile bins
+df_all['Fare'] = pd.qcut(df_all['Fare'], 13)
+
+
+fig, axs = plt.subplots(figsize=(22, 9))
+sns.countplot(x='Fare', hue='Survived', data=df_all)
+
+plt.xlabel('Fare', size=15, labelpad=20)
+plt.ylabel('Passenger Count', size=15, labelpad=20)
+plt.tick_params(axis='x', labelsize=10)
+plt.tick_params(axis='y', labelsize=15)
+
+plt.legend(['Not Survived', 'Survived'], loc='upper right', prop={'size': 15})
+plt.title('Count of Survival in {} Feature'.format('Fare'), size=15, y=1.05)
+
+plt.show()
+
+
+# Age
+df_all['Age'] = pd.qcut(df_all['Age'], 10)
+
+fig, axs = plt.subplots(figsize=(22, 9))
+sns.countplot(x='Age', hue='Survived', data=df_all)
+
+plt.xlabel('Age', size=15, labelpad=20)
+plt.ylabel('Passenger Count', size=15, labelpad=20)
+plt.tick_params(axis='x', labelsize=15)
+plt.tick_params(axis='y', labelsize=15)
+
+plt.legend(['Not Survived', 'Survived'], loc='upper right', prop={'size': 15})
+plt.title('Survival Counts in {} Feature'.format('Age'), size=15, y=1.05)
+
+plt.show()
+
+# We cannot use Ticket feature directly as its huge but we can use num people sharing the same ticket number
+# as a count feature as a proxy for party size
+df_all['Ticket_Frequency'] = df_all.groupby('Ticket')['Ticket'].transform('count')
+
+# Title and isMarried
+
+df_all['Title'] = df_all['Name'].str.split(', ', expand=True)[1].str.split('.', expand=True)[0]
+df_all['Title'] = df_all['Title'].replace(['Miss', 'Mrs','Ms', 'Mlle', 'Lady', 'Mme', 'the Countess', 'Dona'], 'Miss/Mrs/Ms')
+df_all['Title'] = df_all['Title'].replace(['Dr', 'Col', 'Major', 'Jonkheer', 'Capt', 'Sir', 'Don', 'Rev'], 'Dr/Military/Noble/Clergy')
+
+sns.barplot(x=df_all['Title'].value_counts().index, y=df_all['Title'].value_counts().values)
+plt.show()
+
+
+df_all['Is_Married'] = 0
+df_all['Is_Married'].loc[df_all['Title'] == 'Mrs'] = 1
+
+df_train, df_test = divide_df(df_all)
+
+df_all.head()
+
+# Label encode non-numerical ordinal features
+non_numeric_features = ['Age', 'Fare']
+
+# for feature in non_numeric_features:
+encoder = OrdinalEncoder()
+df_train[non_numeric_features] = encoder.fit_transform(df_train[non_numeric_features])
+df_test[non_numeric_features] = encoder.transform(df_test[non_numeric_features])
+
+# One-Hot encode categorical features
+cat_features = ['Pclass', 'Sex', 'Embarked', 'Title']
+
+# Set handle_unknown='ignore' to avoid errors when the validation data contains classes that aren't represented in the training data, and
+# Set sparse=False ensures that the encoded columns are returned as a numpy array (instead of a sparse matrix).
+for feature in cat_features:
+    encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
+    encoded_feat_train = pd.DataFrame(encoder.fit_transform(df_train[[feature]]))
+    encoded_feat_test = pd.DataFrame(encoder.transform(df_test[[feature]]))
+
+    # get OHE column names
+    encoded_feat_train.columns = encoder.get_feature_names([feature])
+    encoded_feat_test.columns = encoder.get_feature_names([feature])
+
+    # One-hot encoding removed index; put it back
+    encoded_feat_train.index = df_train.index
+    encoded_feat_test.index = df_test.index
+
+    # Remove categorical columns (will replace with one-hot encoding)
+    rem_train = df_train.drop(feature, axis=1)
+    rem_test = df_test.drop(feature, axis=1)
+
+    # Add one-hot encoded columns to numerical features
+    df_train = pd.concat([rem_train, encoded_feat_train], axis=1)
+    df_test = pd.concat([rem_test, encoded_feat_test], axis=1)
+
+# Drop unneeded columns
+drop_cols = ['Name', 'Ticket', 'SibSp', 'Parch']
+df_train.drop(drop_cols, axis=1, inplace=True)
+df_test.drop(drop_cols, axis=1, inplace=True)
+
+df_train.shape, df_test.shape
+
+print(sorted(df_train.columns))
+print()
+
+print(sorted(df_test.columns))
+
+df_train
