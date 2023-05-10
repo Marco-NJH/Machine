@@ -1,5 +1,6 @@
 import pandas as pd
 
+# 公式E1
 data1 = pd.read_excel('计算反射.xlsx', sheet_name='Sheet2', usecols=[0, 1], header=0, nrows=441)
 data2 = pd.read_excel('计算反射.xlsx', sheet_name='Sheet2', usecols=[2, 3], header=0, nrows=441)
 lamda1 = data1.iloc[:, 0].values
