@@ -125,7 +125,7 @@ survived_per = survived / df_train.shape[0] * 100
 not_survived_per = not_survived / df_train.shape[0] * 100
 
 print('{} 存活在 {}游客中  并且占训练集的 {:.2f}% .'.format(survived, df_train.shape[0], survived_per))
-print('{} 存活在 {} 游客中 并且占训练集的 {:.2f}% .'.format(not_survived, df_train.shape[0], not_survived_per))
+print('{} 没有存活在 {} 游客中 并且占训练集的 {:.2f}% .'.format(not_survived, df_train.shape[0], not_survived_per))
 
 plt.figure(figsize=(10, 8))
 sns.countplot(df_train['Survived'])
@@ -140,7 +140,7 @@ plt.title('训练集存活分布', size=15, y=1.05)
 
 plt.show()
 
-# 与其他标签之间的关联
+# 某些特征与目标的相关性
 
 print(df_train[['Pclass', 'Survived']].groupby('Pclass', as_index=False)['Survived'].mean())
 print()
@@ -152,8 +152,8 @@ print()
 cont_features = ['Age', 'Fare']
 surv = df_train['Survived'] == 1
 
-fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(20, 20))
-plt.subplots_adjust(right=1.5)
+fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(30, 30))
+plt.subplots_adjust(right=0.9)
 
 for i, feature in enumerate(cont_features):
     # 生存分布特征
@@ -162,6 +162,7 @@ for i, feature in enumerate(cont_features):
 
     # 特征在数据集中的分布
     sns.distplot(df_train[feature], label='Training Set', hist=False, color='#e74c3c', ax=axs[1][i])
+    #     sns.distplot(df_test[feature], label='Test Set', hist=False, color='#2ecc71', ax=axs[1][i])
 
     axs[0][i].set_xlabel('')
     axs[1][i].set_xlabel('')
@@ -179,11 +180,11 @@ axs[1][1].set_title('Distribution of {} Feature'.format('Fare'), size=20, y=1.05
 
 plt.show()
 
-# Categorical Features plot with Target variable
+# 使用目标变量绘制分类特征图
 cat_features = ['Embarked', 'Parch', 'Pclass', 'Sex', 'SibSp']
 
 fig, axs = plt.subplots(ncols=2, nrows=3, figsize=(20, 20))
-plt.subplots_adjust(right=1.5, top=1.25)
+plt.subplots_adjust(right=0.9, top=0.8)
 
 for i, feature in enumerate(cat_features, 1):
     plt.subplot(2, 3, i)
@@ -199,11 +200,15 @@ for i, feature in enumerate(cat_features, 1):
 
 plt.show()
 
+"""大多数特征是相互关联的。此关系可用于创建具有特征转换和特征交互的新特征。目标编码也非常有用，因为它与幸存的特征有很高的相关性。
+分割点和尖峰在连续特征中可见。决策树模型可以很容易地捕捉到它们，但线性模型可能无法发现它们。
+分类特征具有非常明显的分布，具有不同的生存率。这些特征可以是一个热编码的。这些特性中的一些可以相互组合以形成新特性。"""
+
 # 特征工程
 df_all = concat_df(df_train, df_test)
 df_all.head()
 
-# Create some new features
+# 创建一些新功能
 df_all['FamilySize'] = df_all.apply(lambda x: x['SibSp'] + x['Parch'] + 1, axis='columns')
 print(df_all[['FamilySize', 'Survived']].groupby('FamilySize', as_index=False)['Survived'].mean())
 
@@ -214,9 +219,9 @@ print(df_all[['IsAlone', 'Survived']].groupby('IsAlone', as_index=False)['Surviv
 
 print()
 
-# Fare
-# Fare feature is skewed and survival rate is extremely high on the right end.
-# Divide into quantile bins
+# 票价
+# #票价特征倾斜，右端存活率极高。
+# #分成分位数箱
 df_all['Fare'] = pd.qcut(df_all['Fare'], 13)
 
 
@@ -232,7 +237,6 @@ plt.legend(['Not Survived', 'Survived'], loc='upper right', prop={'size': 15})
 plt.title('Count of Survival in {} Feature'.format('Fare'), size=15, y=1.05)
 
 plt.show()
-
 
 # Age
 df_all['Age'] = pd.qcut(df_all['Age'], 10)
@@ -250,8 +254,8 @@ plt.title('Survival Counts in {} Feature'.format('Age'), size=15, y=1.05)
 
 plt.show()
 
-# We cannot use Ticket feature directly as its huge but we can use num people sharing the same ticket number
-# as a count feature as a proxy for party size
+# 我们不能直接使用票证功能，因为它很大，但我们可以使用num个人共享相同的票证号码
+# #作为计数功能，作为参与方大小的代理
 df_all['Ticket_Frequency'] = df_all.groupby('Ticket')['Ticket'].transform('count')
 
 # Title and isMarried
@@ -271,7 +275,7 @@ df_train, df_test = divide_df(df_all)
 
 df_all.head()
 
-# Label encode non-numerical ordinal features
+# 标签编码非数字顺序特征
 non_numeric_features = ['Age', 'Fare']
 
 # for feature in non_numeric_features:
@@ -279,11 +283,10 @@ encoder = OrdinalEncoder()
 df_train[non_numeric_features] = encoder.fit_transform(df_train[non_numeric_features])
 df_test[non_numeric_features] = encoder.transform(df_test[non_numeric_features])
 
-# One-Hot encode categorical features
+# 一个热编码分类功能
 cat_features = ['Pclass', 'Sex', 'Embarked', 'Title']
 
-# Set handle_unknown='ignore' to avoid errors when the validation data contains classes that aren't represented in the training data, and
-# Set sparse=False ensures that the encoded columns are returned as a numpy array (instead of a sparse matrix).
+
 for feature in cat_features:
     encoder = OneHotEncoder(sparse=False, handle_unknown='ignore')
     encoded_feat_train = pd.DataFrame(encoder.fit_transform(df_train[[feature]]))
@@ -305,10 +308,11 @@ for feature in cat_features:
     df_train = pd.concat([rem_train, encoded_feat_train], axis=1)
     df_test = pd.concat([rem_test, encoded_feat_test], axis=1)
 
-# Drop unneeded columns
+# 丢弃不需要的列
 drop_cols = ['Name', 'Ticket', 'SibSp', 'Parch']
 df_train.drop(drop_cols, axis=1, inplace=True)
 df_test.drop(drop_cols, axis=1, inplace=True)
+
 
 df_train.shape, df_test.shape
 
@@ -318,3 +322,88 @@ print()
 print(sorted(df_test.columns))
 
 df_train
+
+
+
+# 模型
+df_val = pd.read_csv("./titanic/gender_submission.csv")
+train_X = df_train.drop(['Survived', 'PassengerId'], axis=1)
+train_y = df_train['Survived']
+test_X = df_test.drop(['PassengerId'], axis=1).copy()
+test_y = df_val['Survived']
+
+
+print('X_train shape: {}'.format(train_X.shape))
+print('y_train shape: {}'.format(train_y.shape))
+print('X_test shape: {}'.format(test_X.shape))
+
+
+# Logistic Regression
+logit = LogisticRegression()
+logit.fit(train_X, train_y)
+pred_y = logit.predict(test_X)
+
+# training loss
+acc_log = round(logit.score(train_X, train_y) * 100, 2)
+print(acc_log)
+
+# logistic regression weights per feature signify a positive or negative effect toward survival
+    # Title_Master(kid), Sex_Female, 1st class have high positive weights toward survival
+    # Large families, Sex_Male, 3rd class have high negative weights toward survival
+
+coeff_df = pd.DataFrame(train_X.columns)
+coeff_df.columns = ['Feature']
+coeff_df["Weights"] = pd.Series(logit.coef_[0])
+coeff_df.sort_values(by='Weights', ascending=False)
+
+# 决策树
+decision_tree = DecisionTreeClassifier()
+decision_tree.fit(train_X, train_y)
+tree_pred_y = decision_tree.predict(test_X)
+acc_decision_tree = round(decision_tree.score(train_X, train_y) * 100, 2)
+acc_decision_tree_test = round(decision_tree.score(test_X, test_y)*100, 2)
+print("---------------decision_tree----------------")
+print("训练准确度:{}".format(acc_decision_tree))
+print("测试集验证准确度:{}".format(acc_decision_tree_test))
+print("---------------decision_tree----------------")
+
+
+# 随机森林
+random_forest = RandomForestClassifier(
+    criterion='gini',
+    n_estimators=500,
+    max_depth=10,
+    min_samples_split=4,
+    min_samples_leaf=5,
+    max_features='auto',
+    oob_score=True,
+    random_state=SEED,
+    n_jobs=-1,
+    verbose=1
+)
+random_forest.fit(train_X, train_y)
+rf_pred_y = random_forest.predict(test_X)
+acc_random_forest = round(random_forest.score(train_X, train_y) * 100, 2)
+acc_random_forest_test = round(random_forest.score(test_X, test_y)*100, 2)
+print("---------------random_forest----------------")
+print("训练准确度:{}".format(acc_random_forest))
+print("测试集验证准确度:{}".format(acc_random_forest_test))
+print("---------------random_forest----------------")
+
+submission_tree = pd.DataFrame({
+    "PassengerId": df_test["PassengerId"],
+    "Survived": tree_pred_y.astype(int)
+})
+submission_tree.head(10)
+submission_tree.to_csv('submission_tree.csv', header=True, index=False)
+x = pd.read_csv('submission_tree.csv')
+x['Survived'].value_counts()
+
+submission_random = pd.DataFrame({
+    "PassengerId": df_test["PassengerId"],
+    "Survived": rf_pred_y.astype(int)
+})
+submission_random.head(10)
+submission_random.to_csv('submission_random.csv', header=True, index=False)
+x = pd.read_csv('submission_random.csv')
+x['Survived'].value_counts()
